@@ -4,9 +4,6 @@ This package is an extension of my master's dissertation project that has been s
 
 At the moment, this package is only availabe on MacOS.
 
-### Background
-The main project involved using a dataset with >20,000 rows representing each NBA game played from the 2013-2014 NBA season to the beginning of the 2022-2023 NBA season, containing information regarding recent team performance, player skill levels, and, crucially, minutes played by players on both teams in a given matchup. This dataset was used to train a logistic regression model, an MLP classifier, and a randon forest classifier. The best performing model, the logistic regression model, a mean testing accuracy of 69.7% across 20 different train-test-split random states. This model outperforms most game prediction models created by students and hobbyists that can be found online and rivals the predictive power of some professional sports betting sites' models. However, to be completely clear, this is not a tool intended to inform betting decisions.
-
 ### Installation
 To install, use the following terminal command:
 
@@ -43,3 +40,6 @@ To do this, run the following lines of code in a notebook or python file:
 from nbapredict_daily.modules import NBAtools
 NBAtools.retrain_model()
 ```
+
+### Background
+The main project involved using a dataset with >20,000 rows representing each NBA game played from the 2013-2014 NBA season to the beginning of the 2022-2023 NBA season, containing information regarding recent team performance, player skill levels, and, crucially, minutes played by players on both teams in a given matchup. This dataset was used to train a logistic regression model, an MLP classifier, and a randon forest classifier. The best performing model, the logistic regression model, a mean testing accuracy of 69.7% across 20 different train-test-split random states. This model outperforms most game prediction models created by students and hobbyists that can be found online and rivals the predictive power of some professional sports betting sites' models. However, to be completely clear, this is not a tool intended to inform betting decisions.

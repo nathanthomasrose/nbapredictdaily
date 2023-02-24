@@ -105,9 +105,12 @@ class DailyReport(object):
 
         print("\nBuilding Game Prediction Dataset...")
         df = dc.build_prediction_data(gamedata, self.team_stats, self.elo)
-
+        
         df.to_csv(f'{self.pred_dir_path}/NewTrainingData.csv', mode='a', header=not os.path.exists(f'{self.pred_dir_path}/NewTrainingData.csv'), index=False)
-
+        df = pd.read_csv(f'{self.pred_dir_path}/NewTrainingData.csv')
+        df.drop_duplicates(subset=['date', 'team', 'opp'], keep='last', inplace=True)
+        df.to_csv(f'{self.pred_dir_path}/NewTrainingData.csv', index=False)
+        
         print("\nPredicting Game Outcomes...")
 
         team = list(df['team'])

@@ -12,12 +12,28 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 
 
-def get_projected_minutes(names, season=2023):
-
-    date = dt.date.today()
+def get_projected_minutes(names):
+    """
+    Purpose:
+        Generates projected minutes played totals for players in today NBA game slate
+    
+    Args:
+        names: A list of names used to update player names to match basketball-reference naming style
+    Returns:
+        df: DataFrame containing the relevant players projected minute totals
+    """
+    
+    today = dt.date.today()
+    if today.month > 7 & today.month <= 12:
+        season = today.year + 1
+    else:
+        season = today.year
+    
+    # Use selenium webdriver to get projected minutes from Lineups.com
     driver = webdriver.Firefox()
-
     driver.get(f'https://www.lineups.com/nba/nba-player-minutes-per-game')
+    
+    # Use driver.click() function to convert the webpage table to CSV form and maximize player output
     driver.find_element(By.XPATH, '/html/body/app-root/div[3]/app-minutes-router/app-minutes/div/div/div[4]/div/div[2]/div[2]/div/div/button').click()
     driver.find_element(By.XPATH, '/html/body/app-root/div[3]/app-minutes-router/app-minutes/div/div/div[4]/div/div[2]/div[1]/div/app-dropdown/div/button/span').click()
     sleep(1)
@@ -26,30 +42,40 @@ def get_projected_minutes(names, season=2023):
     text = driver.find_element(By.XPATH, "/html/body/app-root/div[3]/app-minutes-router/app-minutes/div/div/div[5]/div/p").text
     driver.quit()
     
-    df = pd.read_csv(io.StringIO(text), header=0)
-    df['DATE'] = str(date)
-    df['SEASON'] = season
-    df['SZN_TYPE'] = 'reg'
-    df = df.rename(columns={'Name':'PLAYER', 'Team':'TEAM', 'Projected Minutes':'MP'})
-    df['MP'] = df['MP'].astype('int')
-    df = df[df.MP != 0].sort_values(by=['TEAM'])
-    cols = ['DATE', 'TEAM', 'PLAYER', 'MP', 'SEASON', 'SZN_TYPE']
-    df = df[cols]
-    df = df.replace({'BKN': 'BRK', 'CHA': 'CHO', 'NO': 'NOP', 'NY': 'NYK', 'SA': 'SAS', 'GS': 'GSW'})
+    # create dataframe from mp table text
+    mp_df = pd.read_csv(io.StringIO(text), header=0)
+    mp_df['DATE'] = str(today)
+    mp_df['SEASON'] = season
+    mp_df['SZN_TYPE'] = 'reg'
+    mp_df = mp_df.rename(columns={'Name':'PLAYER', 'Team':'TEAM', 'Projected Minutes':'MP'})
+    mp_df['MP'] = mp_df['MP'].astype('int')
+    mp_df = mp_df[mp_df.MP != 0].sort_values(by=['TEAM'])
+    mp_df = mp_df[['DATE', 'TEAM', 'PLAYER', 'MP', 'SEASON', 'SZN_TYPE']]
+    mp_df = mp_df.replace({'BKN': 'BRK', 'CHA': 'CHO', 'NO': 'NOP', 'NY': 'NYK', 'SA': 'SAS', 'GS': 'GSW'})
 
-    for i in range(len(df)):
-        name = df.loc[i, 'PLAYER']
+    for i in range(len(mp_df)):
+        name = mp_df.loc[i, 'PLAYER']
         try:
             new_name = difflib.get_close_matches(name, names, 1)[0]
         except Exception:
             continue
-        df.loc[i, 'PLAYER'] = new_name
+        mp_df.loc[i, 'PLAYER'] = new_name
 
-    return df
+    return mp_df
 
 
 def daily_stats():
-
+    """
+    Purpose:
+        Generates player and team stats for each team in today NBA game slate by scraping from basketball-reference.com
+    
+    Args:
+        None
+    Returns:
+        ps_df: Player stats dataframe
+        ts_df: Team stats dataframe
+    """
+    
     pred_folder = os.path.join(os.path.join(os.path.expanduser('~')), 'Desktop/PREDICT_NBA')
     sched = pd.read_csv(f'{pred_folder}/TodayGames.csv')
     teams = list(sched.team.unique())
@@ -118,7 +144,16 @@ def daily_stats():
 
 
 def daily_raptor():
-
+    """
+    Purpose:
+        Generates up-to-date RAPTOR ratings from 538's data repository
+    
+    Args:
+        None
+    Returns:
+        rap_df: Dataframe containing RAPTOR ratings for each player in the league
+    """
+    
     today = dt.date.today()
 
     if today.month > 7 & today.month <= 12:
@@ -137,14 +172,23 @@ def daily_raptor():
             d = d[['PLAYER', 'TEAM']]
         df_list.append(d)
 
-    df = pd.merge(df_list[0], df_list[1], on='PLAYER', how='left')
-    df = df.sort_values(by=['PLAYER']).reset_index(drop=True)
-    df = df.replace({'CHA': 'CHO'})
+    rap_df = pd.merge(df_list[0], df_list[1], on='PLAYER', how='left')
+    rap_df = rap_df.sort_values(by=['PLAYER']).reset_index(drop=True)
+    rap_df = rap_df.replace({'CHA': 'CHO'})
 
-    return df
+    return rap_df
 
 
 def daily_elo():
+    """
+    Purpose:
+        Generates up-to-date ELO ratings from 538's data repository
+    
+    Args:
+        None
+    Returns:
+        elo_df: Dataframe containing ELO ratings for each team in the league
+    """
 
     url = "https://projects.fivethirtyeight.com/nba-model/nba_elo_latest.csv"
     download = get(url).content
@@ -156,15 +200,33 @@ def daily_elo():
     df.reset_index(drop=True, inplace=True)
     elodup = df.copy()
     elodup = elodup.rename(columns={'team1': 'team2', 'team2': 'team1', 'elo1_pre': 'elo2_pre', 'elo2_pre': 'elo1_pre'})
-    elo = pd.concat([df, elodup], ignore_index=True)
-    elo = elo.sort_values(by='date')
-    elo.reset_index(drop=True, inplace=True)
-    elo = elo.rename(columns={'team1': 'team', 'team2': 'opp', 'elo1_pre': 'teamElo', 'elo2_pre': 'oppElo'})
+    elo_df = pd.concat([df, elodup], ignore_index=True)
+    elo_df = elo_df.sort_values(by='date')
+    elo_df.reset_index(drop=True, inplace=True)
+    elo_df = elo_df.rename(columns={'team1': 'team', 'team2': 'opp', 'elo1_pre': 'teamElo', 'elo2_pre': 'oppElo'})
 
-    return elo
+    return elo_df
 
 
 def daily_training_update(date, team, season, szn_type):
+    """
+    Purpose:
+        Generates game outcome and score from basketball-reference.com
+
+        Used to update recently added training data from previous prediction runs
+        with the actual game outcome in order to provide an accurate training dataset
+        for retraining the logistic regression model
+    
+    Args:
+        date: Date of the game
+        team: primary team listed in training dataset
+        season: NBA season
+        szn_type: Regular Season or Playoffs
+    Returns:
+        win: Binary game outcome indicator (1,0)
+        Tm: Primary team points
+        Opp: Opposing team points
+    """
 
     r = get(f'https://www.basketball-reference.com/teams/{team}/{season}_games.html')
 
